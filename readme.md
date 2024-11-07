@@ -10,7 +10,7 @@ Snatcher intègre les fonctions suivantes:
 
 # paramétrage
 
-renommer snatcher_template.ini en snatcher.ini et compléter les paramètres:
+renommer `snatcher_template.ini` en `snatcher.ini` et compléter les paramètres:
 - `host`: ip du serveur
 - `database`: nom de la base de données
 - `user`: utilisateur (sera propriétaire de la donnée, doit posséder des droits d'édition)
