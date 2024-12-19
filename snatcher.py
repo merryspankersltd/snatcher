@@ -14,8 +14,8 @@ import logging
 
 # params
 config = configparser.ConfigParser(interpolation=None)
-config.read('snatcher.ini')
-logfile = Path('snatcher.log')
+config.read(Path('/mnt/geom/0128_Atlas_du_sport/data/snatcher/snatcher.ini'))
+logfile = Path('/mnt/geom/0128_Atlas_du_sport/data/snatcher/snatcher.log')
 today = pd.to_datetime('today')
 engine = create_engine(f"postgresql+psycopg2://{config['postgis']['user']}:{config['postgis']['password']}@{config['postgis']['host']}/{config['postgis']['database']}")
 metadata = MetaData(schema='d_res')
