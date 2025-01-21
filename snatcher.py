@@ -207,7 +207,7 @@ if __name__ == "__main__":
     # replace latest mv
     logging.info('replacing latest materialized view...')
     try:
-        set_latest_mv()
+        set_latest_tbl()
         logging.info('latest materialized view replaced')
     except Exception as e:
         logging.critical(f'failed to replace latest materialized view: exited on {e}')
