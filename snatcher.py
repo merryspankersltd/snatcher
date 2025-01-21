@@ -6,7 +6,6 @@ import pandas as pd
 import geopandas as gpd
 from sqlalchemy import (MetaData, Table)
 from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
 import configparser
 import logging
