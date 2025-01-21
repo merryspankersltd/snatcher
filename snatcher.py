@@ -46,9 +46,10 @@ def dl_data():
     except ValueError:
         logging.info('table already exists: dump cancelled')
 
-def set_latest_mv():
+def set_latest_tbl():
     """
-    latest vm (named res_aura_71_latest) is wired to the latest table.
+    latest table (named res_aura_71_latest) is a copy of the
+    latest timestamped table.
     purposes:
         - direct acces to latest data for unprivileged database user
         - join equipement families
@@ -56,40 +57,35 @@ def set_latest_mv():
     will delete existing latest and create new latest from scratch,
     based on latest table
     """
-    # build a session object
-    Session = sessionmaker(bind=engine)
-    session = Session()
 
-    # get res_aura_71_latest mv sql source
-    query = """
-    SELECT definition
-    FROM pg_matviews
-    WHERE matviewname = 'res_aura_71_latest';
-    """
-    result = session.execute(text(query)).fetchone()
-    session.close()
-    old_mv_source = result.definition[:-1]
-
-    # replace timestamp with today
-    subst = f'res_aura_71_{today.strftime("%Y%m%d")}'
-    new_mv_source = re.sub(
-        r"res_aura_71_\d{8}", subst, old_mv_source, 0, re.MULTILINE)
-    logging.info('previous latest mv source updated')
-    
-    # delete old mv and create new mv
+    # delete old latest and create new latest
     drop_mv_sql = """
-    DROP MATERIALIZED VIEW IF EXISTS "d_res"."res_aura_71_latest"
+    DROP TABLE IF EXISTS "d_res"."res_aura_71_latest"
     """
     create_mv_sql = f"""
-    CREATE MATERIALIZED VIEW "d_res"."res_aura_71_latest" as
-    {new_mv_source}
-    WITH DATA;
+    create table d_res.res_aura_71_latest as
+    select
+        ra.*,
+        tea."catégorie urbalyon 2024",
+        tea."famille urbalyon 2024"
+    from d_res.res_aura_71_{today.strftime("%Y%m%d")} ra
+    left join d_res.typ_eq_agence_2024 tea on ra.equip_type_code = tea.equip_type_code_txt;
+
     -- Permissions
+
     ALTER TABLE d_res.res_aura_71_latest OWNER TO u_admin;
-    GRANT ALL ON TABLE d_res.res_aura_71_latest TO postgres;
     GRANT ALL ON TABLE d_res.res_aura_71_latest TO u_admin;
+    GRANT ALL ON TABLE d_res.res_aura_71_latest TO postgres;
     GRANT SELECT ON TABLE d_res.res_aura_71_latest TO u_geo;
-    GRANT SELECT ON TABLE d_res.res_aura_71_latest TO urbalyon;"""
+    GRANT SELECT ON TABLE d_res.res_aura_71_latest TO urbalyon;
+
+    -- indexes
+
+    CREATE UNIQUE INDEX res_aura_71_latest_equip_numero_idx ON d_res.res_aura_71_latest (equip_numero);
+    CREATE INDEX res_aura_71_latest_geometry_idx ON d_res.res_aura_71_latest (geometry);
+    CREATE INDEX res_aura_71_latest_inst_numero_idx ON d_res.res_aura_71_latest (inst_numero);
+    CREATE INDEX res_aura_71_latest_catégorie_urbalyon_2024_idx ON d_res.res_aura_71_latest ("catégorie urbalyon 2024");
+    CREATE INDEX res_aura_71_latest_famille_urbalyon_2024_idx ON d_res.res_aura_71_latest ("famille urbalyon 2024");"""
     
     # drop old mv
     with engine.connect() as connection:
