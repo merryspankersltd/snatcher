@@ -59,32 +59,70 @@ def set_latest_tbl():
 
     # delete old latest and create new latest
     drop_mv_sql = """
-    DROP TABLE IF EXISTS "d_res"."res_aura_71_latest"
-    """
+DROP TABLE IF EXISTS "d_res"."res_aura_71_latest"
+"""
     create_mv_sql = f"""
-    create table d_res.res_aura_71_latest as
+-- drop indexes explicitely
+DROP INDEX IF EXISTS d_res.res_aura_71_latest_equip_numero_idx;
+DROP INDEX IF EXISTS d_res.res_aura_71_latest_geometry_idx;
+DROP INDEX IF EXISTS d_res.res_aura_71_latest_inst_numero_idx;
+DROP INDEX IF EXISTS d_res.res_aura_71_latest_catégorie_urbalyon_2024_idx;
+DROP INDEX IF EXISTS d_res.res_aura_71_latest_famille_urbalyon_2024_idx;
+
+-- drop table explicitly
+DROP TABLE IF EXISTS d_res.res_aura_71_latest CASCADE;
+
+-- create table
+create table d_res.res_aura_71_latest as
     select
         ra.*,
-        tea."catégorie urbalyon 2024",
-        tea."famille urbalyon 2024"
+        tea."catégorie urbalyon 2025" as categorie_urbalyon,
+        tea."famille urbalyon 2025" as famille_urbalyon,
+        now() as dl_timestamp
     from d_res.res_aura_71_{today.strftime("%Y%m%d")} ra
-    left join d_res.typ_eq_agence_2024 tea on ra.equip_type_code = tea.equip_type_code_txt;
+    left join d_res.typ_eq_agence_2025 tea on ra.equip_type_code::text = tea.code::text;
 
-    -- Permissions
+-- Permissions
 
-    ALTER TABLE d_res.res_aura_71_latest OWNER TO u_admin;
-    GRANT ALL ON TABLE d_res.res_aura_71_latest TO u_admin;
-    GRANT ALL ON TABLE d_res.res_aura_71_latest TO postgres;
-    GRANT SELECT ON TABLE d_res.res_aura_71_latest TO u_geo;
-    GRANT SELECT ON TABLE d_res.res_aura_71_latest TO urbalyon;
+ALTER TABLE d_res.res_aura_71_latest OWNER TO u_admin;
+GRANT ALL ON TABLE d_res.res_aura_71_latest TO u_admin;
+GRANT ALL ON TABLE d_res.res_aura_71_latest TO postgres;
+GRANT SELECT ON TABLE d_res.res_aura_71_latest TO u_geo;
+GRANT SELECT ON TABLE d_res.res_aura_71_latest TO urbalyon;
 
-    -- indexes
+-- indexes
 
-    CREATE UNIQUE INDEX res_aura_71_latest_equip_numero_idx ON d_res.res_aura_71_latest (equip_numero);
-    CREATE INDEX res_aura_71_latest_geometry_idx ON d_res.res_aura_71_latest (geometry);
-    CREATE INDEX res_aura_71_latest_inst_numero_idx ON d_res.res_aura_71_latest (inst_numero);
-    CREATE INDEX res_aura_71_latest_catégorie_urbalyon_2024_idx ON d_res.res_aura_71_latest ("catégorie urbalyon 2024");
-    CREATE INDEX res_aura_71_latest_famille_urbalyon_2024_idx ON d_res.res_aura_71_latest ("famille urbalyon 2024");"""
+CREATE UNIQUE INDEX res_aura_71_latest_equip_numero_idx ON d_res.res_aura_71_latest (equip_numero);
+create INDEX res_aura_71_latest_geometry_idx ON d_res.res_aura_71_latest (geometry);
+create INDEX res_aura_71_latest_inst_numero_idx ON d_res.res_aura_71_latest (inst_numero);
+create INDEX res_aura_71_latest_catégorie_urbalyon_2024_idx ON d_res.res_aura_71_latest ("categorie_urbalyon");
+create INDEX res_aura_71_latest_famille_urbalyon_2024_idx ON d_res.res_aura_71_latest ("famille_urbalyon");"""
+
+    create_missings_sql = f"""
+-- drop table explicitly
+DROP TABLE IF EXISTS d_res.codes_eq_manquants CASCADE;
+
+-- create table
+create table d_res.codes_eq_manquants as
+    select distinct
+        r.equip_type_code::int "code type équipement",
+        r.equip_type_name "type RES",
+        r.equip_type_famille "famille RES",
+        r.categorie_urbalyon "catégorie urbalyon",
+        r.famille_urbalyon "famille urbalyon"
+    from d_res.res_aura_71_latest r
+    where
+        r.equip_type_code is not null
+        and r.categorie_urbalyon is null
+    order by 1 asc;
+
+-- Permissions
+
+ALTER TABLE d_res.codes_eq_manquants OWNER TO u_admin;
+GRANT ALL ON TABLE d_res.codes_eq_manquants TO u_admin;
+GRANT ALL ON TABLE d_res.codes_eq_manquants TO postgres;
+GRANT SELECT ON TABLE d_res.codes_eq_manquants TO u_geo;
+GRANT SELECT ON TABLE d_res.codes_eq_manquants TO urbalyon;"""
     
     # drop old mv
     with engine.connect() as connection:
